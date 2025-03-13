@@ -49,8 +49,9 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.cookie("token", token, {
             httpOnly: true,
             secure: true, // Only send over HTTPS in production
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Protects against CSRF
+            sameSite: "lax", // Protects against CSRF
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            domain: "pixelstream.khaftab.me", // Set domain to your domain
         });
         res.status(200).json({ id: user._id, email: user.email, isAllowed: user.uploadCount > 0 });
     }
@@ -93,6 +94,7 @@ const signin = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             secure: true, // Only send over HTTPS in production
             sameSite: "lax", // Protects against CSRF
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            domain: "pixelstream.khaftab.me", // Set domain to your domain
         });
         res.status(200).json({ id: user._id, email: user.email, isAllowed: user.uploadCount > 0 });
     }

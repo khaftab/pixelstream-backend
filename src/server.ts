@@ -13,15 +13,25 @@ app.use(express.json());
 app.use(
   cors({
     credentials: true,
-    origin: [process.env.ORIGINS!],
+    origin: [process.env.ORIGIN!],
   })
 );
-console.log("origins", process.env.ORIGINS);
 
 app.use(cookieParser());
 setRoutes(app);
 
-checkEnvVariables(["MONGO_URI"]);
+checkEnvVariables([
+  "MONGO_URI",
+  "SECRET_KEY",
+  "AWS_REGION",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_S3_BUCKET",
+  "WEBHOOK_API_KEY",
+  "UPSTASH_REDIS_URL",
+  "UPSTASH_REDIS_TOKEN",
+  "ORIGIN",
+]);
 
 mongoose
   .connect(process.env.MONGO_URI!)
@@ -35,10 +45,6 @@ mongoose
   .catch((error) => {
     console.error("Error connecting to MongoDB:", error);
   });
-
-app.get("/haka", (req: Request, res: Response) => {
-  res.send(`Hello World ${process.env.NODE_ENV}`);
-});
 
 app.all("*", (req: Request, res: Response) => {
   res.status(404).json({

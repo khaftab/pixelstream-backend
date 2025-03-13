@@ -15,12 +15,22 @@ app.set("trust proxy", true);
 app.use(express_1.default.json());
 app.use((0, cors_1.default)({
     credentials: true,
-    origin: [process.env.ORIGINS],
+    origin: [process.env.ORIGIN],
 }));
-console.log("origins", process.env.ORIGINS);
 app.use((0, cookie_parser_1.default)());
 (0, routes_1.default)(app);
-(0, checkEnvVariables_1.checkEnvVariables)(["MONGO_URI"]);
+(0, checkEnvVariables_1.checkEnvVariables)([
+    "MONGO_URI",
+    "SECRET_KEY",
+    "AWS_REGION",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_S3_BUCKET",
+    "WEBHOOK_API_KEY",
+    "UPSTASH_REDIS_URL",
+    "UPSTASH_REDIS_TOKEN",
+    "ORIGIN",
+]);
 mongoose_1.default
     .connect(process.env.MONGO_URI)
     .then(() => {
@@ -32,9 +42,6 @@ mongoose_1.default
 })
     .catch((error) => {
     console.error("Error connecting to MongoDB:", error);
-});
-app.get("/haka", (req, res) => {
-    res.send(`Hello World ${process.env.NODE_ENV}`);
 });
 app.all("*", (req, res) => {
     res.status(404).json({

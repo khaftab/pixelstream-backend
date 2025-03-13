@@ -33,6 +33,9 @@ mongoose_1.default
     .catch((error) => {
     console.error("Error connecting to MongoDB:", error);
 });
+app.get("/haka", (req, res) => {
+    res.send(`Hello World ${process.env.NODE_ENV}`);
+});
 app.all("*", (req, res) => {
     res.status(404).json({
         message: "Route not found",

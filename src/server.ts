@@ -36,7 +36,7 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/haka", (req: Request, res: Response) => {
   res.send(`Hello World ${process.env.NODE_ENV}`);
 });
 

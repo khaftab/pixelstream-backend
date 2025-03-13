@@ -36,6 +36,10 @@ mongoose
     console.error("Error connecting to MongoDB:", error);
   });
 
+app.get("/", (req: Request, res: Response) => {
+  res.send(`Hello World ${process.env.NODE_ENV}`);
+});
+
 app.all("*", (req: Request, res: Response) => {
   res.status(404).json({
     message: "Route not found",

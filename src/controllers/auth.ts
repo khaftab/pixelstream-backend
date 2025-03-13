@@ -36,7 +36,7 @@ const signup = async (req: Request, res: Response) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true, // Only send over HTTPS in production
-      sameSite: "lax", // Protects against CSRF
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Protects against CSRF
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

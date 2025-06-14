@@ -38,7 +38,7 @@ const signup = async (req: Request, res: Response) => {
       secure: true, // Only send over HTTPS in production
       sameSite: "lax", // Protects against CSRF
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      domain: "pixelstream.khaftab.me", // Set domain to your domain
+      domain: process.env.NODE_ENV === "production" ? "pixelstream.khaftab.me" : "localhost", // Set domain to your domain
     });
 
     res.status(200).json({ id: user._id, email: user.email, isAllowed: user.uploadCount > 0 });

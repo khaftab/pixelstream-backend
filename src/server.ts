@@ -8,12 +8,13 @@ import setRoutes from "./routes/routes";
 require("dotenv").config();
 
 const app = express();
+const ORIGINS = process.env.ORIGINS?.split(",") || [];
 app.set("trust proxy", true);
 app.use(express.json());
 app.use(
   cors({
     credentials: true,
-    origin: [process.env.ORIGIN!],
+    origin: ORIGINS,
   })
 );
 

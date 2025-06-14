@@ -14,38 +14,9 @@ export const transcodingProgress = async (req: Request, res: Response) => {
 
   const { filename } = req.params;
   const redisKey = `transcode:${filename.split(".")[0]}`; // Remove extension
-  // const redisKey = "sdf";
-  console.log("Subscribing to", redisKey);
 
   // @ts-ignore
   let lastData = null;
-
-  const MOCK_EVENTS = [
-    // { stage: "downloading", progress: 0, status: "downloading" },
-    // { stage: "downloading", progress: 20, status: "downloading" },
-    // { stage: "downloading", progress: 30, status: "downloading" },
-    // { stage: "downloading", progress: 60, status: "downloading" },
-    // { stage: "downloading", progress: 80, status: "downloading" },
-    // { stage: "downloading", progress: 100, status: "downloading" },
-    // { stage: "downloading", progress: 100, status: "downloading" },
-    { stage: "transcoding", progress: 0, status: "processing" },
-    { stage: "transcoding", progress: 20, status: "processing" },
-    // { stage: "transcoding", progress: 40, status: "processing" },
-    { stage: "transcoding", progress: 100, status: "processing" },
-    // { stage: "transcoding", progress: 50, status: "processing" },
-    // { stage: "transcoding", progress: 67, status: "processing" },
-    // { stage: "transcoding", progress: 90, status: "processing" },
-    // { stage: "transcoding", progress: 100, status: "processing" },
-    // { stage: "transcoding", progress: 100, status: "processing" },
-    // { stage: "transcoding", progress: 100, status: "processing" },
-    { stage: "uploading", progress: 0, status: "uploading" },
-    { stage: "uploading", progress: 30, status: "uploading" },
-    { stage: "uploading", progress: 70, status: "uploading" },
-    // { stage: "uploading", progress: 100, status: "uploading" },
-    { stage: "uploading", progress: 100, status: "success" },
-  ];
-
-  let mockIndex = 0;
 
   // Create interval to check Redis and send mock data
   const interval = setInterval(async () => {
@@ -65,16 +36,10 @@ export const transcodingProgress = async (req: Request, res: Response) => {
         // Close connection if completed
         if (parsedData.status === "success" || parsedData.status === "failed") {
           clearInterval(interval);
-          res.end();
+          // res.end(); // Frontend will handle closing the connection
+          res.write(`event: done\ndata: ${JSON.stringify(data)}\n\n`);
         }
       }
-
-      // Send mock data
-      // if (mockIndex < MOCK_EVENTS.length) {
-      //   const mockData = MOCK_EVENTS[mockIndex];
-      //   res.write(`data: ${JSON.stringify(mockData)}\n\n`);
-      //   mockIndex++;
-      // }
     } catch (error) {
       console.error("SSE Error:", error);
       res.write("event: error\ndata: Failed to get progress\n\n");
@@ -87,3 +52,36 @@ export const transcodingProgress = async (req: Request, res: Response) => {
     res.end();
   });
 };
+
+// const MOCK_EVENTS = [
+//     // { stage: "downloading", progress: 0, status: "downloading" },
+//     // { stage: "downloading", progress: 20, status: "downloading" },
+//     // { stage: "downloading", progress: 30, status: "downloading" },
+//     // { stage: "downloading", progress: 60, status: "downloading" },
+//     // { stage: "downloading", progress: 80, status: "downloading" },
+//     // { stage: "downloading", progress: 100, status: "downloading" },
+//     // { stage: "downloading", progress: 100, status: "downloading" },
+//     { stage: "transcoding", progress: 0, status: "processing" },
+//     { stage: "transcoding", progress: 20, status: "processing" },
+//     // { stage: "transcoding", progress: 40, status: "processing" },
+//     { stage: "transcoding", progress: 100, status: "processing" },
+//     // { stage: "transcoding", progress: 50, status: "processing" },
+//     // { stage: "transcoding", progress: 67, status: "processing" },
+//     // { stage: "transcoding", progress: 90, status: "processing" },
+//     // { stage: "transcoding", progress: 100, status: "processing" },
+//     // { stage: "transcoding", progress: 100, status: "processing" },
+//     // { stage: "transcoding", progress: 100, status: "processing" },
+//     { stage: "uploading", progress: 0, status: "uploading" },
+//     { stage: "uploading", progress: 30, status: "uploading" },
+//     { stage: "uploading", progress: 70, status: "uploading" },
+//     // { stage: "uploading", progress: 100, status: "uploading" },
+//     { stage: "uploading", progress: 100, status: "success" },
+//   ];
+
+//   let mockIndex = 0;
+// Send mock data
+// if (mockIndex < MOCK_EVENTS.length) {
+//   const mockData = MOCK_EVENTS[mockIndex];
+//   res.write(`data: ${JSON.stringify(mockData)}\n\n`);
+//   mockIndex++;
+// }

@@ -59,12 +59,12 @@ const getFilesByUserId = async (userId: string, sort: SortOrder, pageNo: number)
   const skip = (pageNo - 1) * LIMIT;
   const totalFiles = await File.countDocuments({
     user: userId,
-    transcodingStatus: TranscodingStatusEnum.PENDING,
+    transcodingStatus: TranscodingStatusEnum.DONE,
   });
   const totalPages = Math.ceil(totalFiles / LIMIT);
   const files = await File.find({
     user: userId,
-    transcodingStatus: TranscodingStatusEnum.PENDING,
+    transcodingStatus: TranscodingStatusEnum.DONE,
   })
     .sort({ updatedAt: sort }) // ascending
     .skip(skip)

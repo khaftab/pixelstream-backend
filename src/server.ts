@@ -31,7 +31,7 @@ checkEnvVariables([
   "WEBHOOK_API_KEY",
   "UPSTASH_REDIS_URL",
   "UPSTASH_REDIS_TOKEN",
-  "ORIGIN",
+  "ORIGINS",
 ]);
 
 mongoose

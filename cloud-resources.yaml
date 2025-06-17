@@ -1,0 +1,293 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  Creates ECS cluster, Task Definition, SQS Queue, Lambda, ECR Repository, S3, and an IAM role for access.
+
+Resources:
+  # SQS Queue for processing video upload events.
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-queue"
+      VisibilityTimeout: 240
+
+  # Policy that allows S3 to send events to the SQS queue.
+  SQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: !Sub "${AWS::StackName}-sqs-policy"
+        Statement:
+          - Sid: SendUploadEvent
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: SQS:SendMessage
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:s3:::${AWS::StackName}-bucket"
+              StringLike:
+                s3:object-key:
+                  - "*.mp4"
+                  - "*.avi"
+                  - "*.mov"
+                  - "*.wmv"
+                  - "*.flv"
+                  - "*.mkv"
+                  - "*.webm"
+                  - "*.m4v"
+                  - "*.mpeg"
+                  - "*.mpg"
+                  - "*.3gp"
+                  - "*.3g2"
+                  - "*.mxf"
+                  - "*.asf"
+                  - "*.vob"
+          - Sid: AllowS3SendMessage
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: SQS:SendMessage
+            Resource: !GetAtt SQSQueue.Arn
+
+  # S3 Bucket for temporary video storage.
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DependsOn: SQSQueuePolicy # Ensures the bucket is created after the SQS policy.
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-bucket"
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: "s3:ObjectCreated:*" # Triggers an event when a new object is uploaded.
+            Queue: !GetAtt SQSQueue.Arn
+      CorsConfiguration: # CORS settings for cross-origin requests.
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - HEAD
+            AllowedOrigins:
+              - "*"
+
+  # IAM User for accessing S3 and other resources.
+  IAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-user"
+
+  # Access Key for the IAM User.
+  IAMUserAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref IAMUser
+
+  # Policy for the IAM User to access S3, SQS, ECS, and other services.
+  IAMUserPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${AWS::StackName}-user-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:* # Full access to S3 bucket.
+            Resource:
+              - !Sub "arn:aws:s3:::${AWS::StackName}-bucket"
+              - !Sub "arn:aws:s3:::${AWS::StackName}-bucket/*"
+          - Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:ChangeMessageVisibility
+            Resource: !GetAtt SQSQueue.Arn
+          - Effect: Allow
+            Action:
+              - ecs:* # Full ECS permissions.
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - iam:PassRole # Permissions to pass roles to ECS.
+            Resource:
+              - !GetAtt ECSTaskExecutionRole.Arn
+              - !GetAtt ECSTaskRole.Arn
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource:
+              - !Sub "arn:aws:s3:::${AWS::StackName}-bucket/*"
+      Users:
+        - !Ref IAMUser
+
+  # ECS Cluster to manage tasks and services.
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${AWS::StackName}-cluster"
+
+  # Task Definition for the ECS Fargate task.
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${AWS::StackName}-task"
+      Cpu: "2048"
+      Memory: "4096"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE # Indicates that this is a Fargate task.
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: !Sub "${AWS::StackName}-container"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:latest"
+          Essential: true
+          Environment:
+            - Name: AWS_ACCESS_KEY_ID
+              Value: !Ref IAMUserAccessKey
+            - Name: AWS_SECRET_ACCESS_KEY
+              Value: !GetAtt IAMUserAccessKey.SecretAccessKey
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub "/ecs/${AWS::StackName}-task"
+              awslogs-create-group: "true"
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: "ecs"
+      RuntimePlatform:
+        CpuArchitecture: ARM64 # Should match with image architecture
+        OperatingSystemFamily: LINUX
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-ecs-trigger"
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: "lambda-ecs-trigger.zip"
+      Runtime: nodejs22.x
+      Timeout: 40
+      MemorySize: 128
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-lambda-ecs-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                  - iam:PassRole
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt SQSQueue.Arn
+
+  SQSLambdaEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt SQSQueue.Arn
+      FunctionName: !Ref LambdaFunction
+      BatchSize: 1
+
+  # IAM Role for ECS task execution.
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  # IAM Role for ECS tasks themselves.
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: "sts:AssumeRole"
+
+  # ECR Repository for storing Docker images.
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${AWS::StackName}-repo"
+
+  # CloudWatch Logs group for ECS task logs.
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${AWS::StackName}-task"
+      RetentionInDays: 30 # Keeps logs for 30 days.
+
+Outputs:
+  S3BucketName:
+    Description: Name of the created S3 bucket
+    Value: !Ref S3Bucket
+  SQSQueueURL:
+    Description: URL of the created SQS queue
+    Value: !Ref SQSQueue
+  SQSQueueARN:
+    Description: ARN of the created SQS queue
+    Value: !GetAtt SQSQueue.Arn
+  IAMUserName:
+    Description: Name of the created IAM user
+    Value: !Ref IAMUser
+  IAMUserAccessKey:
+    Description: Access Key for the IAM user
+    Value: !Ref IAMUserAccessKey
+  IAMUserSecretKey:
+    Description: Secret Key for the IAM user
+    Value: !GetAtt IAMUserAccessKey.SecretAccessKey
+  ECSClusterARN:
+    Description: ARN of the ECS cluster
+    Value: !GetAtt ECSCluster.Arn
+  ECSTaskDefinitionArn:
+    Description: ARN of the ECS task definition
+    Value: !Ref ECSTaskDefinition
+  ECRRepositoryUri:
+    Description: URI of the ECR repository
+    Value: !GetAtt ECRRepository.RepositoryUri
+  LambdaFunctionName:
+    Description: Name of the processing Lambda function
+    Value: !Ref LambdaFunction
+  LambdaFunctionARN:
+    Description: ARN of the processing Lambda function
+    Value: !GetAtt LambdaFunction.Arn

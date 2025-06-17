@@ -1,0 +1,17 @@
+{
+  "name": "lmada",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "zip -r lambda-ecs-trigger.zip . -x .env package-lock.json package.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "dotenv": "^16.4.7"
+  }
+}

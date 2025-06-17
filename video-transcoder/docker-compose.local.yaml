@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  video-transcoder:
+    image: video-transcoder
+    environment:
+      LOCAL_TEST: "true" # Enable local mode for testing.
+      LOCAL_VIDEO_FILE: /app/video/video.mp4 # Path to the input video file inside the container. (We mount the local video directory to /app/video)
+      R2_ACCESS_KEY_ID: # Cloudflare R2 access key ID
+      R2_SECRET_ACCESS_KEY: # Cloudflare R2 secret access key
+      R2_ENDPOINT: # Cloudflare R2 S3-compatible endpoint (ends with .r2.cloudflarestorage.com)
+      R2_BUCKET: # Cloudflare R2 bucket name (e.g., pixel-stream)
+      BACKEND_API: https://jsonplaceholder.typicode.com/todos/1 # API endpoint to notify status after job completion. Using a dummy URL in local mode to prevent failure.
+      REDIS_URL: # Upstash redis URL (e.g., https://...upstash.io)
+      REDIS_TOKEN: # Upstash redis token or password
+      USER_ID: test-user # Simulated user ID for local testing
+      OUTPUT_BASE: test-video # Base name for the output video
+    volumes:
+      - /e/Node App/pixel-stream/backend/video-transcoder/video:/app/video # Replace with the path to your local video directory (must include /video at the end)
+      - /e/Node App/pixel-stream/backend/video-transcoder:/tmp # Replace with the path to your local working directory
+
+# Build image: docker build -t video-transcoder .
+# Run using: docker-compose -f ./docker-compose.local.yaml up

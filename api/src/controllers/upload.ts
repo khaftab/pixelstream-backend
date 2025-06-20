@@ -26,8 +26,8 @@ export const presignedUrl = async (req: Request, res: Response) => {
     originalFileName: fileName,
     safeFileName,
     s3Key,
-    fileSize: 0, // Placeholder value
-    fileType, // Placeholder value
+    fileSize: 0,
+    fileType,
     duration,
   });
   if (!uploadRecord) {
@@ -89,12 +89,7 @@ export const confirmUpload = async (req: Request, res: Response) => {
       { new: true }
     );
 
-    // 4. Optional: Add additional processing here
-    // (e.g., trigger video encoding, send notifications, etc.)
-
     res.status(201).json({
-      // message: "Upload confirmed successfully",
-      // upload: updatedUpload,
       safeFileName: updatedUpload?.safeFileName.split(".")[0],
     });
   } catch (error: any) {

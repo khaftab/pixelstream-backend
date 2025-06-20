@@ -64,7 +64,10 @@ const getFilesByUserId = async (userId: string, sort: SortOrder, pageNo: number)
   const totalPages = Math.ceil(totalFiles / LIMIT);
   const files = await File.find({
     user: userId,
-    transcodingStatus: TranscodingStatusEnum.DONE,
+    transcodingStatus:
+      process.env.NODE_ENV === "production"
+        ? TranscodingStatusEnum.DONE
+        : TranscodingStatusEnum.PENDING, // in development, no way to call the webhook endpoint.
   })
     .sort({ updatedAt: sort }) // ascending
     .skip(skip)

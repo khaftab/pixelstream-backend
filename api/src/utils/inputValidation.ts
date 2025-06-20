@@ -15,10 +15,3 @@ export const addFileSchema = Joi.object({
   size: Joi.number().required(),
   type: Joi.string().required(),
 });
-
-// export const updateUserSchema = Joi.object({
-//   username: Joi.string().alphanum().min(3).max(30),
-//   fullname: Joi.string(),
-//   picture: Joi.string(),
-//   message: Joi.string().min(20),
-// });
